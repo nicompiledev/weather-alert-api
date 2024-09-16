@@ -80,7 +80,7 @@ Response:
 
 {
     "forecast_code": 1186,
-    "forecast_description": "Partially cloudy",
+    "forecast_description": "Parcialmente nublado",
     "buyer_notification": true
 }
 ```
