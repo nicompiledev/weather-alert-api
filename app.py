@@ -9,12 +9,15 @@ might delay package deliveries.
 import os
 import smtplib
 import sqlite3
+import logging
 from datetime import datetime
 import requests
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from email_validator import validate_email, EmailNotValidError   
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)  # Or use logging.DEBUG for more verbose output
 
 # Load environment variables from a .env file
 load_dotenv()
@@ -107,7 +110,9 @@ def send_email(to_email, subject, body):
             server.sendmail(
                 EMAIL_USER, to_email, message.encode("utf-8")
             )  # Send the email
+            
     except smtplib.SMTPException as e:
+        logging.error("Error sending email: %s", e)
         print(f"Error sending email: {e}")
 
 
@@ -133,6 +138,7 @@ def save_notification(email, location, forecast):
         conn.commit()
         conn.close()
     except sqlite3.Error as e:
+        logging.error("Error saving notification: %s", e)
         print(f"Error saving notification: {e}")
 
 
@@ -246,4 +252,5 @@ def get_notifications():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    if os.environ.get("TESTING", "False") == "False":
+        app.run(debug=True)
