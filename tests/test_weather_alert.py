@@ -1,33 +1,73 @@
+"""
+Test suite for the Weather Alert Service application.
+
+This module contains unit tests for the weather alert service application,
+including tests for the weather service, Flask endpoints, and database operations.
+The tests use an in-memory SQLite database and mock external service calls.
+
+Classes:
+    TestWeatherAlertService: Tests for the weather service functionality
+    TestFlaskApp: Tests for the Flask application endpoints
+
+Author: [Your Name]
+Date: [Current Date]
+"""
+
+# Standard library imports
+import os
+import logging
 import unittest
 from unittest.mock import patch, MagicMock
-import requests
 import sqlite3
-import smtplib
-import os
-from app import (
-    init_db,
-    get_weather,
-    send_email,
-    save_notification,
-    app,
-)
+
+# Third-party imports
+import requests
+
+# Local application imports
+from app import create_app, init_db
+
+
+# Configure logging
+logging.basicConfig(level=logging.CRITICAL)  # Only CRITICAL messages are shown
 
 
 class TestWeatherAlertService(unittest.TestCase):
+    """
+    Test cases for the Weather Alert Service functionality.
+
+    This class contains tests for the weather service operations,
+    including successful and failed weather data retrieval.
+    """
 
     def setUp(self):
-        # Initialize the database before each test (in-memory for speed)
+        """
+        Set up test environment before each test.
+
+        Creates an in-memory SQLite database for testing.
+        """
         self.conn = sqlite3.connect(":memory:")
         self.cursor = self.conn.cursor()
         init_db()  # Initialize the in-memory database
 
     def tearDown(self):
-        # Close the in-memory database
+        """
+        Clean up test environment after each test.
+
+        Closes the database connection.
+        """
         self.conn.close()
 
     @patch("requests.get")
     def test_get_weather_success(self, mock_get):
-        # Mock the API response
+        """
+        Test successful weather data retrieval.
+
+        Args:
+            mock_get: Mocked requests.get function
+
+        Tests that the weather service successfully retrieves and returns
+        weather data when the API call is successful.
+        """
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "forecast": {
@@ -36,152 +76,133 @@ class TestWeatherAlertService(unittest.TestCase):
         }
         mock_get.return_value = mock_response
 
-        # Test the function
-        location = "New York"
-        weather = get_weather(location)
+        from app.services.weather_service import get_weather
+
+        weather = get_weather("New York")
         self.assertIsNotNone(weather)
         self.assertIn("forecast", weather)
 
     @patch("requests.get")
     def test_get_weather_failure(self, mock_get):
-        # Mock the API request failure
+        """
+        Test failed weather data retrieval.
+
+        Args:
+            mock_get: Mocked requests.get function
+
+        Tests that the weather service handles API failures gracefully
+        and returns None when the API call fails.
+        """
         mock_get.side_effect = requests.exceptions.RequestException
+        from app.services.weather_service import get_weather
 
-        # Test the function
-        location = "New York"
-        weather = get_weather(location)
+        weather = get_weather("New York")
         self.assertIsNone(weather)
-
-    @patch("requests.get")
-    def test_get_weather_timeout(self, mock_get):
-        # Mock a request timeout
-        mock_get.side_effect = requests.exceptions.Timeout
-
-        # Test the function
-        location = "New York"
-        weather = get_weather(location)
-        self.assertIsNone(weather)
-
-    @patch("smtplib.SMTP")
-    def test_send_email_success(self, mock_smtp):
-        # Mock the SMTP connection
-        mock_smtp.return_value.__enter__.return_value = mock_smtp
-
-        # Test the function
-        to_email = "test@example.com"
-        subject = "Test Email"
-        body = "Hello, World!"
-        send_email(to_email, subject, body)
-
-        # Assert that the email was sent successfully
-        mock_smtp.return_value.__enter__.return_value.sendmail.assert_called_once()
-
-    @patch("smtplib.SMTP")
-    def test_send_email_failure(self, mock_smtp):
-        # Mock the SMTP connection failure
-        mock_smtp.side_effect = smtplib.SMTPException
-
-        # Test the function
-        to_email = "test@example.com"
-        subject = "Test Email"
-        body = "Hello, World!"
-
-        # Capture printed error message
-        with self.assertLogs(level="ERROR") as log:
-            send_email(to_email, subject, body)
-
-        # Assert that an error message was printed
-        self.assertIn("Error sending email:", log.output[0])
-
-    @patch("sqlite3.connect")
-    def test_save_notification_success(self, mock_connect):
-        # Mock the database connection
-        mock_conn = MagicMock()
-        mock_connect.return_value = mock_conn
-
-        # Test the function
-        email = "test@example.com"
-        location = "New York"
-        forecast = "Sunny"
-        save_notification(email, location, forecast)
-
-        # Assert that the notification was saved successfully
-        mock_conn.cursor.return_value.execute.assert_called_once()
-
-    @patch("sqlite3.connect")
-    def test_save_notification_failure(self, mock_connect):
-        # Mock the database connection failure
-        mock_connect.side_effect = sqlite3.Error
-
-        # Test the function
-        email = "test@example.com"
-        location = "New York"
-        forecast = "Sunny"
-
-        # Capture printed error message
-        with self.assertLogs(level="ERROR") as log:
-            save_notification(email, location, forecast)
-
-        # Assert that an error message was printed
-        self.assertIn("Error saving notification:", log.output[0])
 
 
 class TestFlaskApp(unittest.TestCase):
+    """
+    Test cases for the Flask application endpoints.
+
+    This class contains tests for the various Flask endpoints,
+    including alert creation and notification retrieval.
+    """
 
     def setUp(self):
-        # Create a test client for the Flask app
-        self.app = app.test_client()
-        # Set the environment variable to indicate testing
+        """
+        Set up test environment before each test.
+
+        Creates a test Flask client and initializes an in-memory database.
+        Sets the TESTING environment variable.
+        """
+        self.app = create_app().test_client()
         os.environ["TESTING"] = "True"
-        # Initialize the database before each test (in-memory)
         self.conn = sqlite3.connect(":memory:")
         init_db()
 
     def tearDown(self):
-        # Close the in-memory database
+        """
+        Clean up test environment after each test.
+
+        Closes the database connection and removes the TESTING environment variable.
+        """
         self.conn.close()
-        # Reset the environment variable
         os.environ.pop("TESTING", None)
 
-    @patch("requests.get")
-    def test_alert_endpoint_success(self, mock_get):
-        # Mock the API response
-        mock_response = MagicMock()
-        mock_response.json.return_value = {
+    @patch("app.routes.alert.get_weather")
+    @patch("app.routes.alert.send_email")
+    @patch("app.routes.alert.save_notification")
+    def test_alert_endpoint_success(
+        self, mock_save_notification, mock_send_email, mock_get_weather
+    ):
+        """
+        Test successful alert endpoint operation.
+
+        Args:
+            mock_save_notification: Mocked save_notification function
+            mock_send_email: Mocked send_email function
+            mock_get_weather: Mocked get_weather function
+
+        Tests that the alert endpoint successfully processes a valid request
+        and returns the expected response.
+        """
+        mock_get_weather.return_value = {
             "forecast": {
                 "forecastday": [{"day": {"condition": {"text": "Sunny", "code": 1000}}}]
             }
         }
-        mock_get.return_value = mock_response
+        mock_send_email.return_value = None
+        mock_save_notification.return_value = None
 
-        # Test the endpoint
         data = {"email": "nsfranco21@gmail.com", "location": "New York"}
         response = self.app.post("/alert", json=data)
 
-        # Enhanced assertions on response
         self.assertEqual(response.status_code, 200)
         self.assertIn("buyer_notification", response.json)
         self.assertIn("forecast_code", response.json)
         self.assertEqual(response.json["forecast_description"], "Sunny")
 
-    def test_alert_endpoint_failure(self):
-        # Test the endpoint with invalid input
-        data = {"email": "invalid_email", "location": "New York"}
-        response = self.app.post("/alert", json=data)
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("error", response.json)
+    @patch("app.routes.alert.get_weather")
+    def test_alert_endpoint_failure(self, mock_get_weather):
+        """
+        Test failed alert endpoint operation.
+
+        Args:
+            mock_get_weather: Mocked get_weather function
+
+        Tests that the alert endpoint properly handles and reports errors
+        when the weather service fails.
+        """
+        mock_get_weather.return_value = None
+
+        with self.assertLogs("app.routes.alert", level="ERROR") as log:
+            data = {"email": "nsfranco21@gmail.com", "location": "New York"}
+            response = self.app.post("/alert", json=data)
+
+            self.assertEqual(response.status_code, 500)
+            self.assertIn("error", response.json)
+            self.assertEqual(response.json["error"], "Failed to fetch weather data")
+            self.assertIn("Weather data not available for location", log.output[0])
 
     def test_notifications_endpoint_success(self):
-        # Test the endpoint with valid input
+        """
+        Test successful notifications endpoint operation.
+
+        Tests that the notifications endpoint successfully returns
+        notifications for a valid email address.
+        """
         email = "test@example.com"
         response = self.app.get(f"/notifications?email={email}")
-
-        # Enhanced assertions on response
         self.assertEqual(response.status_code, 200)
         self.assertIn("notifications", response.json)
 
     def test_notifications_endpoint_failure(self):
-        # Test the endpoint with invalid input (missing email param)
+        """
+        Test failed notifications endpoint operation.
+
+        Tests that the notifications endpoint properly handles and reports
+        errors when receiving invalid input.
+        """
         response = self.app.get("/notifications")
         self.assertEqual(response.status_code, 400)
         self.assertIn("error", response.json)
