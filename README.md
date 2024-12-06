@@ -1,4 +1,3 @@
-```markdown
 # Weather Alert Service
 
 This module implements a Flask web application that provides a weather alert service.
