@@ -115,7 +115,7 @@ This endpoint checks the weather forecast for the specified location and sends a
 ```json
 {
     "forecast_code": 1186,
-    "forecast_description": "Partially Cloudy",
+    "forecast_description": "Parcialmente nublado",
     "buyer_notification": true
 }
 ```
@@ -142,7 +142,7 @@ This endpoint retrieves all notifications sent to a specific email.
             "id": 1,
             "email": "recipient@example.com",
             "location": "New York",
-            "forecast": "Rainy"
+            "forecast": "Parcialmente nublado"
         }
     ]
 }

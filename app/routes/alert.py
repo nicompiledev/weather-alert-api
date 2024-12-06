@@ -1,5 +1,6 @@
 import logging
 from flask import Blueprint, request, jsonify
+from flask import render_template
 from email_validator import validate_email, EmailNotValidError
 from app.services.weather_service import get_weather
 from app.services.email_service import send_email
@@ -46,21 +47,25 @@ def alert():
                 return jsonify({"error": "Failed to fetch weather data"}), 500
 
             # Extract the forecast data from the weather response
-            forecast = weather["forecast"]["forecastday"][0]["day"]
+            forecast = weather["forecast"]["forecastday"][1]["day"]
             weather_condition = forecast["condition"]["text"]
             forecast_code = forecast["condition"]["code"]
+            city_name = weather["location"]["name"]
 
             # Determine whether to notify the buyer based on the weather conditions
             notify_buyer = False
             if forecast_code in [1186, 1189, 1192, 1195, 1063]:
                 notify_buyer = True
                 # Send an email to the buyer if notification is required
-                email_body = (
-                    f"Hola! Mañana se espera {weather_condition}, "
-                    f"lo que podría retrasar la entrega de tu paquete."
+                email_body = render_template(
+                    "email_template.html",
+                    city_name=city_name, 
+                    weather_condition=weather_condition.lower()
+                    
                 )
+
                 send_email(
-                    email, "ENTREGA RETRASADA POR CONDICIONES CLIMÁTICAS", email_body
+                    email, "ENTREGA RETRASADA POR CONDICIONES CLIMÁTICAS", email_body, content_type="html"
                 )
                 # Save a notification record in the database
                 save_notification(email, location, weather_condition)

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Alert</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        .highlight {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <p>Hola!</p>
+    <p>
+        Tenemos programada la entrega de tu paquete para mañana, en la dirección de
+        entrega en la ciudad de <span class="highlight">{{ city_name }}</span>, esperamos un día con 
+        <span class="highlight">{{ weather_condition }}</span> y por esta razón es posible que tengamos retrasos.
+    </p>
+    <p>Haremos todo a nuestro alcance para cumplir con tu entrega.</p>
+</body>
+
+</html>
